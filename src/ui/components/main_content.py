@@ -1,0 +1,435 @@
+import tkinter as tk
+import customtkinter as ctk
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+from typing import Optional, List
+import random
+from datetime import datetime
+
+class MainContentFrame(ctk.CTkFrame):
+    def __init__(self, master, **kwargs):
+        # Transparent so the app's mint green background bleeds through
+        super().__init__(master, fg_color="transparent", corner_radius=0, **kwargs)
+        
+        # 2 Column Split (60% / 40%)
+        self.grid_columnconfigure(0, weight=3) # Left Graph
+        self.grid_columnconfigure(1, weight=2) # Right Log
+        self.grid_rowconfigure(0, weight=1)
+
+        # ---------------------------------------------------------
+        # LEFT COLUMN (POP-ART GRAPH)
+        # ---------------------------------------------------------
+        self.graph_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.graph_container.grid(row=0, column=0, sticky="nsew", padx=(10, 5), pady=10)
+        self.graph_container.grid_columnconfigure(0, weight=1)
+        self.graph_container.grid_rowconfigure(1, weight=1)
+
+        # The Sticker Status (Floats above or sits on top)
+        self.result_frame = ctk.CTkFrame(
+            self.graph_container, 
+            corner_radius=0, 
+            fg_color="#FFFF00", # Chunky yellow sticker
+            border_width=3, 
+            border_color="#000000"
+        )
+        self.result_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        
+        self.result_title = ctk.CTkLabel(
+            self.result_frame, 
+            text="STATUS",
+            font=ctk.CTkFont(family="Space Grotesk", size=14, weight="bold"),
+            text_color="#000000"
+        )
+        self.result_title.pack(anchor="w", padx=10, pady=(5, 0))
+        
+        self.result_value = ctk.CTkLabel(
+            self.result_frame, 
+            text="AWAITING INPUT",
+            font=ctk.CTkFont(family="Space Grotesk", size=32, weight="bold"),
+            text_color="#000000"
+        )
+        self.result_value.pack(anchor="w", padx=10)
+
+        self.result_status = ctk.CTkLabel(
+            self.result_frame, 
+            text="ENTER PARAMETERS TO BEGIN",
+            font=ctk.CTkFont(family="Space Mono", size=12, weight="bold"),
+            text_color="#000000"
+        )
+        self.result_status.pack(anchor="w", padx=10, pady=(0, 10))
+
+        # The Graph Frame
+        self.graph_frame = ctk.CTkFrame(
+            self.graph_container, 
+            corner_radius=0, 
+            fg_color="#FFFFFF", 
+            border_width=3, 
+            border_color="#000000"
+        )
+        self.graph_frame.grid(row=1, column=0, sticky="nsew")
+        self.graph_frame.grid_columnconfigure(0, weight=1)
+        self.graph_frame.grid_rowconfigure(0, weight=1)
+
+        # Brutalist Matplotlib Figure
+        self.figure = Figure(figsize=(5, 4), dpi=100, facecolor='#FFFFFF')
+        self.ax = self.figure.add_subplot(111)
+        self.ax.set_facecolor('#FFFFFF')
+        self.ax.tick_params(colors='#000000', labelsize=10, width=2)
+        
+        # Thick black spines
+        for spine in self.ax.spines.values():
+            spine.set_color('#000000')
+            spine.set_linewidth(3)
+            
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self.graph_frame)
+        self.canvas_widget = self.canvas.get_tk_widget()
+        self.canvas_widget.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        
+        self._show_graph_placeholder()
+
+        # ---------------------------------------------------------
+        # RIGHT COLUMN (DOT-MATRIX RECEIPT LOG)
+        # ---------------------------------------------------------
+        self.log_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.log_container.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
+        self.log_container.grid_columnconfigure(0, weight=1)
+        self.log_container.grid_rowconfigure(0, weight=1)
+
+        # 1. Outer black shadow (Raw tk.Frame avoids CTk Canvas sub-pixel bleeding!)
+        # Offset using pure absolute math relative to the container. relwidth=1.0 - 6px means it matches the border layer exactly!
+        self.log_unified_shadow = tk.Frame(self.log_container, bg="#000000")
+        self.log_unified_shadow.place(relwidth=1.0, relheight=1.0, x=6, y=6, width=-6, height=-6)
+
+        # 2. Border layer (Raw tk.Frame)
+        # Gridded to automatically force the log_container to respects its children's minimum sizes.
+        self.log_border_layer = tk.Frame(self.log_container, bg="#000000")
+        self.log_border_layer.grid(row=0, column=0, sticky="nsew", padx=(0, 6), pady=(0, 6))
+
+        # 3. Actual white main container (CTkFrame inside the tk.Frame border)
+        # Packed with 3px to reveal the black border layer underneath it.
+        self.log_unified_main = ctk.CTkFrame(self.log_border_layer, fg_color="#F8F8F8", corner_radius=0)
+        self.log_unified_main.pack(fill="both", expand=True, padx=3, pady=3)
+
+        # 1. Header Frame inside unified main
+        self.log_header_frame = ctk.CTkFrame(self.log_unified_main, fg_color="transparent", corner_radius=0)
+        # Pack header inside main box
+        self.log_header_frame.pack(fill="x", pady=(3, 0))
+
+        # Title with Icon
+        self.log_title_frame = ctk.CTkFrame(self.log_header_frame, fg_color="transparent")
+        self.log_title_frame.pack(side="left", padx=10, pady=8)
+        
+        # Load terminal icon (optional)
+        try:
+            from PIL import Image
+            term_icon = ctk.CTkImage(light_image=Image.open("assets/log_icon_black.png"), size=(20, 20))
+        except FileNotFoundError:
+            term_icon = None
+
+        self.log_header_lbl = ctk.CTkLabel(
+            self.log_title_frame, 
+            text="ALGORITHMIC LOG",
+            image=term_icon,
+            compound="left",
+            padx=5,
+            font=ctk.CTkFont(family="Space Grotesk", size=22, weight="bold"),
+            text_color="#000000"
+        )
+        self.log_header_lbl.pack(side="left")
+
+        # Action Buttons (Download/Print)
+        self.log_actions_frame = ctk.CTkFrame(self.log_header_frame, fg_color="transparent")
+        self.log_actions_frame.pack(side="right", padx=(0, 10), pady=8)
+        
+        try:
+            from PIL import Image
+            dl_icon = ctk.CTkImage(light_image=Image.open("assets/download_icon_black.png"), size=(20, 20))
+            pr_icon = ctk.CTkImage(light_image=Image.open("assets/print_icon_black.png"), size=(20, 20))
+        except FileNotFoundError:
+            dl_icon, pr_icon = None, None
+
+        self.dl_btn = ctk.CTkButton(self.log_actions_frame, text="", image=dl_icon, width=34, height=34, corner_radius=0, fg_color="#F8F8F8", hover_color="#E2E8F0", border_width=2, border_color="#000000")
+        self.dl_btn.pack(side="left", padx=4)
+        
+        self.pr_btn = ctk.CTkButton(self.log_actions_frame, text="", image=pr_icon, width=34, height=34, corner_radius=0, fg_color="#F8F8F8", hover_color="#E2E8F0", border_width=2, border_color="#000000")
+        self.pr_btn.pack(side="left", padx=4)
+
+        # 2. Horizontal Black Separator Line
+        self.log_separator = ctk.CTkFrame(self.log_unified_main, fg_color="#000000", height=3, corner_radius=0)
+        # Pad left and right to touch the inside of the 3px borders but not overwrite them
+        self.log_separator.pack(fill="x", padx=3)
+
+        # 3. Scrollable Log Area (No border)
+        self.log_scroll_frame = ctk.CTkScrollableFrame(
+            self.log_unified_main, 
+            corner_radius=0,
+            border_width=0,
+            fg_color="transparent" # Let the unified main #F8F8F8 show through
+        )
+        # Pad exactly to fit within the 3px border, padding bottom 3px
+        self.log_scroll_frame.pack(fill="both", expand=True, padx=3, pady=(0, 3))
+        
+        self._wrap_length = 350
+        self.log_scroll_frame.bind("<Configure>", self._update_wraplength, add="+")
+        
+        self.reset_view()
+
+    def _update_wraplength(self, event):
+        self._wrap_length = max(200, event.width - 40)
+        for frame in self.log_scroll_frame.winfo_children():
+            for widget in frame.winfo_children():
+                if isinstance(widget, ctk.CTkLabel) and widget.cget("wraplength") != 0:
+                    widget.configure(wraplength=self._wrap_length)
+
+    def _clear_log(self):
+        """Destroys all child widgets in the scrollable log frame, resetting it to empty."""
+        for widget in self.log_scroll_frame.winfo_children():
+            widget.destroy()
+
+    def _append_log(self, text: str, title: Optional[str] = None, style: str = "normal"):
+        """Appends a styled text block to the algorithmic log.
+
+        Args:
+            text: The body content to display.
+            title: Optional heading rendered as a Neo-Brutalist badge above the text.
+            style: Visual style ('normal', 'success', 'error', 'code') controlling badge color.
+        """
+        frame = ctk.CTkFrame(self.log_scroll_frame, fg_color="transparent")
+        frame.pack(fill="x", padx=10, pady=(5, 5))
+        
+        if title:
+            # Title gets Cyan, Magenta, or Yellow based on style
+            bg_color = "#00FFFF" if style == "normal" or style == "success" else "#FF00FF"
+            if style == "code": bg_color = "#FFFF00"
+            
+            # Neo-Brutalist Shadow Container for Title
+            title_container = ctk.CTkFrame(frame, fg_color="transparent")
+            title_container.pack(anchor="w", pady=(0, 5))
+            
+            title_shadow = ctk.CTkFrame(title_container, fg_color="#000000", corner_radius=0)
+            title_shadow.pack(anchor="w") 
+            
+            lbl_title_frame = ctk.CTkFrame(title_shadow, fg_color=bg_color, corner_radius=0, border_width=2, border_color="#000000")
+            lbl_title_frame.pack(anchor="w", padx=(0, 3), pady=(0, 3)) 
+            
+            lbl_title = ctk.CTkLabel(
+                lbl_title_frame, 
+                text=title.upper(), 
+                font=ctk.CTkFont(family="Space Grotesk", size=16, weight="bold"), 
+                text_color="#000000"
+            )
+            lbl_title.pack(padx=8, pady=4)
+            
+        color = "#000000"
+        font = ctk.CTkFont(family="Space Mono", size=14, weight="bold")
+            
+        lbl_text = ctk.CTkLabel(frame, text=text, font=font, text_color=color, justify="left", wraplength=self._wrap_length)
+        lbl_text.pack(anchor="w")
+
+    def add_step(self, heading: str, content: str, style: str = "normal"):
+        """Adds a formally headed step to the algorithmic trail log.
+
+        Args:
+            heading: The trail heading label (e.g., 'GIVEN', 'METHOD', 'FINAL').
+            content: The body text content for this step.
+            style: Visual style ('normal', 'success', 'error', 'code') controlling badge color.
+        """
+        self._append_log(content, title=heading, style=style)
+
+    def set_computing_status(self, expr_str: str, x0: float, x1: float, tol: float):
+        self.result_value.configure(text="CALCULATING...", text_color="#000000") 
+        self.result_status.configure(text="PROCESSING INPUTS...", text_color="#000000")
+        
+        self._clear_log()
+        
+        session_id = f"#{random.randint(0, 99):02X}{random.randint(0, 99):02X}-{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
+        timestamp = datetime.utcnow().strftime("%H:%M:%S")
+        boot_msg = f"NeuroSolve Processor v2.4\nSESSION ID: {session_id}\nTIMESTAMP: {timestamp} UTC\n{'-'*41}"
+        
+        frame = ctk.CTkFrame(self.log_scroll_frame, fg_color="transparent")
+        frame.pack(fill="x", padx=10, pady=(15, 15))
+        
+        # Render the centered boot text block
+        font = ctk.CTkFont(family="Space Mono", size=13, weight="bold")
+        lbl_text = ctk.CTkLabel(frame, text=boot_msg, font=font, text_color="#7A7A7A", justify="center")
+        lbl_text.pack(anchor="center")
+
+        self.add_step("GIVEN", f"Function: f(x) = {expr_str}\nx0={x0} | x1={x1} | tol={tol}", style="code")
+        self.add_step("METHOD", "Secant Method Root Finder\nAlgorithm Initialized.", style="normal")
+        self.add_step("STEPS", "Beginning numerical iteration sequence...", style="normal")
+
+    def update_success(self, root: float, iterations: int):
+        self.add_step("FINAL", f"Root bounded at x = {root:.8f}", style="success")
+        self.add_step("VERIFICATION", f"f({root:.6f}) ≈ 0\nResidual error mapping is within acceptable tolerance constraints.", style="success")
+        self.add_step("SUMMARY", f"The Root Finder protocol successfully converged to the root after {iterations} mathematical steps.", style="normal")
+        
+        self.result_frame.configure(fg_color="#00FFFF") # Cyan sticker for success
+        self.result_value.configure(text=f"{root:.6f}")
+        self.result_status.configure(text=f"ROOT FOUND IN {iterations} ITERS")
+
+    def update_error(self, message: str, root_so_far: Optional[float] = None, total_iters: int = 0):
+        self.add_step("SUMMARY", f"Calculation halted due to algorithmic failure.\n{message}", style="error")
+        
+        self.result_frame.configure(fg_color="#FF00FF") # Magenta sticker for error
+        if root_so_far is not None:
+             self.result_value.configure(text=f"{root_so_far:.6f}")
+        else:
+             self.result_value.configure(text="NULL")
+             
+        self.result_status.configure(text=f"FAILED ({total_iters} ITERS): ERROR")
+        
+    def render_log_history(self, history_list: List[dict]):
+        """
+        Renders the step-by-step mathematical execution trail onto the UI scroll plane.
+
+        Args:
+            history_list (List[dict]): A list of dictionaries generated by the solver. 
+                                       Expected keys are:
+                                       - 'n' (int): Iteration number.
+                                       - 'x_n' (float): The current x estimate.
+                                       - 'f(x_n)' (float): The evaluated function at x.
+                                       - 'error' (float): The calculated residual error.
+                                       - 'explanation' (str): Plain english description of the step.
+        """
+        # ARCHITECTURAL OVERRIDE: Render entries in a single optimized block to prevent UI lag.
+        for index, step in enumerate(history_list):
+            n = step['n']
+            xn = step['x_n']
+            fxn = step['f(x_n)']
+            err = step['error']
+            explanation = step.get('explanation', 'No explanation provided.')
+            
+            # Format combined mathematical block using f-strings for alignment
+            math_text = f"x_curr:      {xn:.6f}\nf(x):        {fxn:.6f}"
+            if err is not None:
+                err_str = f"{err:.6e}" if err < 0.0001 else f"{err:.6f}"
+                math_text += f"\nerror:       {err_str}"
+            else:
+                math_text += f"\nerror:       --"
+                
+            # Simulate the vertical indentation line using a left border on the container frame
+            frame = ctk.CTkFrame(self.log_scroll_frame, fg_color="transparent") 
+            frame.pack(fill="x", padx=10, pady=(5, 15))
+            
+            inner_content = ctk.CTkFrame(frame, fg_color="transparent")
+            inner_content.pack(fill="both", expand=True, padx=(16, 0)) # Indent content
+            
+            # Vertical line (absolute positioned to left edge of inner content)
+            vline = ctk.CTkFrame(frame, fg_color="#000000", width=2)
+            vline.place(relheight=1.0, x=4, y=14) # Simulate line starting below the node
+            
+            # Fancy Node Point
+            node_point = ctk.CTkFrame(frame, fg_color="#00FFFF", border_color="#000000", border_width=2, width=10, height=10, corner_radius=10)
+            node_point.place(x=0, y=10)
+
+            # Neo-Brutalist Title Box
+            title_container = ctk.CTkFrame(inner_content, fg_color="transparent")
+            title_container.pack(anchor="w", pady=(0, 10))
+            
+            title_shadow = ctk.CTkFrame(title_container, fg_color="#000000", corner_radius=0)
+            title_shadow.pack(anchor="w")
+            
+            lbl_title_frame = ctk.CTkFrame(title_shadow, fg_color="#00FFFF", corner_radius=0, border_width=2, border_color="#000000")
+            lbl_title_frame.pack(anchor="w", padx=(0, 3), pady=(0, 3))
+            
+            # Use index + 1 for pure UI auto-numbering, completely decoupled from math logic
+            lbl_title = ctk.CTkLabel(lbl_title_frame, text=f"STEP {index + 1:02d}", font=ctk.CTkFont(family="Space Grotesk", size=16, weight="bold"), text_color="#000000")
+            lbl_title.pack(padx=8, pady=2)
+            
+            # Human Explanation (Directly below title)
+            lbl_exp = ctk.CTkLabel(inner_content, text=explanation, font=ctk.CTkFont(family="Space Grotesk", size=15), text_color="#000000", justify="left", wraplength=self._wrap_length - 20)
+            lbl_exp.pack(anchor="w", pady=(0, 6))
+            
+            # Mathematical Data (Combined text block for performance)
+            lbl_math = ctk.CTkLabel(inner_content, text=math_text, font=ctk.CTkFont(family="Space Mono", size=15, weight="bold"), text_color="#000000", justify="left")
+            lbl_math.pack(anchor="w")
+
+            # PERFORMANCE FIX: Flush UI tasks every 5 iterations to prevent freezing
+            if index > 0 and index % 5 == 0:
+                self.update_idletasks()
+
+    def log_input_error(self, error_msg: str):
+        self._clear_log()
+        self.add_step("SUMMARY", f"VALIDATION FAIL\n{error_msg}", style="error")
+        self.result_frame.configure(fg_color="#FF00FF")
+        self.result_value.configure(text="ERROR")
+        self.result_status.configure(text="BAD INPUT. CHECK PARAMETERS.")
+        self._show_graph_placeholder()
+
+    def log_unexpected_error(self, error_msg: str):
+        self._clear_log()
+        self.add_step("SUMMARY", f"FATAL SYSTEM CRASH\n{error_msg}", style="error")
+        self.result_frame.configure(fg_color="#FF00FF")
+        self.result_value.configure(text="CRASH")
+        self.result_status.configure(text="SYSTEM FAILURE.")
+        self._show_graph_placeholder()
+
+    def reset_view(self):
+        self.result_frame.configure(fg_color="#FFFF00") # Yellow
+        self.result_value.configure(text="STANDBY")
+        self.result_status.configure(text="SYSTEM READY. ENTER COMMAND.")
+        
+        self._clear_log()
+        self._show_graph_placeholder()
+        self._show_standby_screen()
+
+    def _show_standby_screen(self):
+        """Renders a faux-terminal diagnostics screen as the idle state placeholder."""
+        boot_msg = (
+            "=========================================\n"
+            "      NEUROSOLVE.NEO SECANT ENGINE       \n"
+            "=========================================\n\n"
+            "[ SYS_STATUS ] : STANDBY\n"
+            "[  MEMORY  ]   : ALLOCATED\n"
+            "[ ALGORITHM ]  : SECANT METHOD ROUTINE\n\n"
+            "> Awaiting parameter input...\n"
+            "> Configure [X0, X1, TOLERANCE] above.\n"
+            "> Initialize sequence via [CALCULATE]."
+        )
+        
+        frame = ctk.CTkFrame(self.log_scroll_frame, fg_color="transparent")
+        frame.pack(fill="x", padx=10, pady=(40, 15))
+        
+        font = ctk.CTkFont(family="Space Mono", size=13, weight="bold")
+        lbl_text = ctk.CTkLabel(frame, text=boot_msg, font=font, text_color="#7A7A7A", justify="left")
+        lbl_text.pack(anchor="center")
+
+    def _show_graph_placeholder(self):
+        self.ax.clear()
+        self.ax.text(0.5, 0.5, "NO SIGNAL", 
+                     horizontalalignment='center', verticalalignment='center', 
+                     transform=self.ax.transAxes, color='#000000', fontfamily="Space Grotesk", fontweight="bold", fontsize=24)
+        self.ax.grid(True, color="#000000", linewidth=2)
+        self.canvas.draw_idle()
+
+    def draw_graph(self, x_curve: list, y_curve: list, history: list):
+        self.ax.clear()
+        
+        # Brutalist thick grid
+        self.ax.grid(True, color="#000000", linewidth=1, linestyle="-")
+        
+        # Main pop-art cyan curve
+        self.ax.plot(x_curve, y_curve, color="#00FFFF", linewidth=4, label="$f(x)$", zorder=3)
+        self.ax.axhline(0, color="#000000", linewidth=3, zorder=2) # X-axis
+        
+        # Plot iteration points with massive markers
+        if history:
+            x_points = [step['x_n'] for step in history]
+            y_points = [step['f(x_n)'] for step in history]
+            
+            # Initial guesses
+            self.ax.scatter(x_points[:2], y_points[:2], color="#FFFF00", edgecolors="#000000", linewidths=2, s=150, zorder=5, label="INITIAL")
+            
+            # intermediate points
+            if len(x_points) > 2:
+                 self.ax.scatter(x_points[2:-1], y_points[2:-1], color="#000000", s=60, marker="x", linewidths=3, zorder=5, label="STEPS")
+            
+            # Final point
+            final_color = "#00FFFF" if (history[-1].get('error') or 1) < 1 else "#FF00FF"
+            self.ax.scatter([x_points[-1]], [y_points[-1]], color=final_color, edgecolors="#000000", linewidths=3, s=250, zorder=6, label="TARGET")
+            
+        # Brutalist legend
+        self.ax.legend(facecolor="#FFFFFF", edgecolor="#000000", labelcolor="#000000", prop={'family': 'Space Mono', 'weight': 'bold'})
+        self.figure.tight_layout()
+        self.canvas.draw_idle()
