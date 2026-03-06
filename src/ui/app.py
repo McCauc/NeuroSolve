@@ -129,13 +129,17 @@ class NeuroSolveApp(ctk.CTk):
             # 3. Render Step-by-Step History Log to "Trail Panel"
             self.main_content.render_log_history(result['history'])
             
-            # 4. Handle Outcome and update main Result & Status UI
+            # 4. Render Iteration Table
+            if result['history']:
+                self.main_content.render_iteration_table(expr_str, result['history'], result['root'], result['iterations'])
+            
+            # 5. Handle Outcome and update main Result & Status UI
             if result['converged']:
                 self.main_content.update_success(result['root'], result['iterations'])
             else:
                 self.main_content.update_error(result['error_msg'], result['root'], result['iterations'])
 
-            # 5. ASYNC GRAPH RENDERING
+            # 6. ASYNC GRAPH RENDERING
             # Plot generation is heavy. Using `self.after` lets the Tk mainloop draw
             # the text results BEFORE freezing exactly once to draw the Matplotlib graph.
             self.after(50, lambda: self.__generate_and_draw_graph(callable_func, x0, x1, result))

@@ -403,6 +403,116 @@ class MainContentFrame(ctk.CTkFrame):
         self.ax.grid(True, color="#000000", linewidth=2)
         self.canvas.draw_idle()
 
+    def render_iteration_table(self, func_str: str, history_list: List[dict], root: float, iterations: int):
+        """Renders a detailed iteration table showing the secant method's progression.
+        
+        Args:
+            func_str: The function string for the title
+            history_list: List of iteration history dictionaries
+            root: The final root value
+            iterations: Number of iterations performed
+        """
+        # Add separator
+        sep_frame = ctk.CTkFrame(self.log_scroll_frame, fg_color="transparent")
+        sep_frame.pack(fill="x", padx=10, pady=(15, 10))
+        sep_line = ctk.CTkFrame(sep_frame, fg_color="#000000", height=2)
+        sep_line.pack(fill="x")
+        
+        # Add title
+        title_text = f"Approximate root of the equation {func_str} using Secant method is {root:.4f} (After {iterations} iterations)"
+        title_frame = ctk.CTkFrame(self.log_scroll_frame, fg_color="transparent")
+        title_frame.pack(fill="x", padx=10, pady=(5, 15))
+        
+        title_label = ctk.CTkLabel(
+            title_frame,
+            text=title_text,
+            font=ctk.CTkFont(family="Space Grotesk", size=13, weight="bold"),
+            text_color="#000000",
+            wraplength=self._wrap_length - 20
+        )
+        title_label.pack(anchor="w")
+        
+        # Create table container
+        table_frame = ctk.CTkFrame(self.log_scroll_frame, fg_color="transparent")
+        table_frame.pack(fill="x", padx=10, pady=(0, 10))
+        
+        # Table styling
+        header_bg = "#FFFF00"  # Yellow headers
+        row_bg_normal = "#F8F8F8"
+        row_bg_alt = "#FFFFFF"
+        border_color = "#000000"
+        
+        # Column widths (approximate)
+        col_widths = [40, 80, 100, 80, 100, 80, 100, 120]
+        headers = ["n", "x₀", "f(x₀)", "x₁", "f(x₁)", "x₂", "f(x₂)", "Update"]
+        
+        # Create header row
+        header_frame = ctk.CTkFrame(table_frame, fg_color=header_bg, border_width=2, border_color=border_color, corner_radius=0)
+        header_frame.pack(fill="x", pady=(0, 0))
+        
+        for i, header in enumerate(headers):
+            col_frame = ctk.CTkFrame(header_frame, fg_color=header_bg, corner_radius=0)
+            col_frame.pack(side="left", fill="both", expand=True, padx=1, pady=1)
+            
+            label = ctk.CTkLabel(
+                col_frame,
+                text=header,
+                font=ctk.CTkFont(family="Space Mono", size=11, weight="bold"),
+                text_color="#000000"
+            )
+            label.pack(pady=4, padx=4)
+        
+        # Create data rows
+        # Each row in the display represents one iteration of the secant method
+        # We need to group the history entries into triplets (x₀, x₁, x₂)
+        row_num = 1
+        for i in range(len(history_list) - 2):
+            # GroupOf 3 consecutive entries form one iteration display
+            if i + 2 < len(history_list):
+                x0_entry = history_list[i]
+                x1_entry = history_list[i + 1]
+                x2_entry = history_list[i + 2]
+                
+                x0_val = x0_entry['x_n']
+                f_x0_val = x0_entry['f(x_n)']
+                x1_val = x1_entry['x_n']
+                f_x1_val = x1_entry['f(x_n)']
+                x2_val = x2_entry['x_n']
+                f_x2_val = x2_entry['f(x_n)']
+                
+                # Alternate row colors
+                row_bg = row_bg_alt if row_num % 2 == 0 else row_bg_normal
+                
+                # Create data row
+                data_frame = ctk.CTkFrame(table_frame, fg_color=row_bg, border_width=1, border_color=border_color, corner_radius=0)
+                data_frame.pack(fill="x", pady=(0, 0))
+                
+                row_data = [
+                    str(row_num),
+                    f"{x0_val:.4f}",
+                    f"{f_x0_val:.4f}",
+                    f"{x1_val:.4f}",
+                    f"{f_x1_val:.4f}",
+                    f"{x2_val:.4f}",
+                    f"{f_x2_val:.4f}",
+                    "x₀ = x₁\nx₁ = x₂"
+                ]
+                
+                for j, cell_data in enumerate(row_data):
+                    col_frame = ctk.CTkFrame(data_frame, fg_color=row_bg, corner_radius=0)
+                    col_frame.pack(side="left", fill="both", expand=True, padx=1, pady=1)
+                    
+                    label = ctk.CTkLabel(
+                        col_frame,
+                        text=cell_data,
+                        font=ctk.CTkFont(family="Space Mono", size=10),
+                        text_color="#000000",
+                        justify="center"
+                    )
+                    label.pack(pady=3, padx=3)
+                
+                row_num += 1
+
     def draw_graph(self, x_curve: list, y_curve: list, history: list):
         self.ax.clear()
         
