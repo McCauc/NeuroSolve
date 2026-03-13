@@ -34,7 +34,7 @@ The application bridges the gap between theoretical mathematics and practical co
 ### Project Structure
 
 ```
-COSC-110_(PROJECT)/
+NeuroSolve-Secant-Method-Root-Finder/
 ├── README.md                          # Quick start guide
 ├── requirements.txt                   # Python dependencies
 ├── run.bat                           # Windows batch script to launch application
@@ -605,7 +605,7 @@ The project demonstrates professional software engineering practices including s
 
 ---
 
-**Last Updated**: March 6, 2026  
+**Last Updated**: March 13, 2026  
 **Project Status**: Fully Functional - Educational Release  
 **Version**: 1.0  
 **License**: Educational Use (Contact for specifics)

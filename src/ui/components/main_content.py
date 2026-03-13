@@ -6,6 +6,7 @@ from matplotlib.figure import Figure
 from typing import Optional, List
 import random
 from datetime import datetime
+from src.utils.tooltip import Tooltip
 
 class MainContentFrame(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
@@ -138,22 +139,19 @@ class MainContentFrame(ctk.CTkFrame):
         )
         self.log_header_lbl.pack(side="left")
 
-        # Action Buttons (Download/Print)
+        # Action Buttons (Download)
         self.log_actions_frame = ctk.CTkFrame(self.log_header_frame, fg_color="transparent")
         self.log_actions_frame.pack(side="right", padx=(0, 10), pady=8)
         
         try:
             from PIL import Image
             dl_icon = ctk.CTkImage(light_image=Image.open("assets/download_icon_black.png"), size=(20, 20))
-            pr_icon = ctk.CTkImage(light_image=Image.open("assets/print_icon_black.png"), size=(20, 20))
         except FileNotFoundError:
-            dl_icon, pr_icon = None, None
+            dl_icon = None
 
         self.dl_btn = ctk.CTkButton(self.log_actions_frame, text="", image=dl_icon, width=34, height=34, corner_radius=0, fg_color="#F8F8F8", hover_color="#E2E8F0", border_width=2, border_color="#000000")
         self.dl_btn.pack(side="left", padx=4)
-        
-        self.pr_btn = ctk.CTkButton(self.log_actions_frame, text="", image=pr_icon, width=34, height=34, corner_radius=0, fg_color="#F8F8F8", hover_color="#E2E8F0", border_width=2, border_color="#000000")
-        self.pr_btn.pack(side="left", padx=4)
+        Tooltip(self.dl_btn, "Download the algorithmic log as a text file")
 
         # 2. Horizontal Black Separator Line
         self.log_separator = ctk.CTkFrame(self.log_unified_main, fg_color="#000000", height=3, corner_radius=0)

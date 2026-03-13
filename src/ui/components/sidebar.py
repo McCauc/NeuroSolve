@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import tkinter as tk
 import os
+from src.utils.tooltip import Tooltip
 
 # Set to "1" locally to enable dev fillers, disable for production.
 IS_DEV_MODE = os.environ.get("NEUROSOLVE_DEV", "0") == "1"
@@ -28,10 +29,19 @@ class SidebarFrame(ctk.CTkFrame):
         self.input_frame.pack(side="left", expand=True, fill="x", padx=10, pady=(5, 5), anchor="w")
 
         self.func_entry = self._create_input_group(self.input_frame, "INITIAL f(x)", "|→", "x**2 - 4", width=160)
+        Tooltip(self.func_entry, "Enter the mathematical function using x as the variable\nExample: x**2 - 4, sin(x), exp(x) - 1")
+        
         self.x0_entry = self._create_input_group(self.input_frame, "INITIAL X0", "|→", "1.0", width=160)
+        Tooltip(self.x0_entry, "First initial guess for the secant method\nShould be close to where f(x) ≈ 0")
+        
         self.x1_entry = self._create_input_group(self.input_frame, "INITIAL X1", "→", "2.0", width=160)
+        Tooltip(self.x1_entry, "Second initial guess for the secant method\nShould be different from X0")
+        
         self.tol_entry = self._create_input_group(self.input_frame, "TOLERANCE", "×", "1e-6", width=160)
+        Tooltip(self.tol_entry, "Convergence tolerance (epsilon)\nSmaller values = more accurate but slower")
+        
         self.iter_entry = self._create_input_group(self.input_frame, "MAX ITER.", "↻", "100", width=160)
+        Tooltip(self.iter_entry, "Maximum number of iterations\nPrevents infinite loops if no solution exists")
 
         # Action Buttons (Rightmost)
         self.btn_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -64,6 +74,7 @@ class SidebarFrame(ctk.CTkFrame):
         )
         # Pad by 3px symmetrically so the black border shows through under the button
         self.clear_button.pack(expand=True, fill="both", padx=3, pady=3)
+        Tooltip(self.clear_button, "Clear all inputs and reset the interface")
 
         # Calculate Button Container & Shadow
         self.calc_container = ctk.CTkFrame(self.btn_frame, fg_color="transparent", width=194, height=54)
@@ -102,6 +113,7 @@ class SidebarFrame(ctk.CTkFrame):
         )
         # Pad by 3px symmetrically so the black border shows through under the button
         self.solve_button.pack(expand=True, fill="both", padx=3, pady=3)
+        Tooltip(self.solve_button, "Execute the secant method solver\nwith the configured parameters")
 
     def _create_input_group(self, parent, top_label_text, inner_icon_text, placeholder, width=160):
         """

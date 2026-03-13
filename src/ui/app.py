@@ -4,6 +4,11 @@ import time
 from typing import Optional
 import math
 import numpy as np
+import warnings
+
+# Suppress matplotlib font warnings for missing fonts (graceful fallback is built-in)
+warnings.filterwarnings('ignore')
+
 from src.utils.parsing import parse_math_expr
 from src.solvers.secant_method import solve_secant_method
 from src.ui.components.header import HeaderFrame
