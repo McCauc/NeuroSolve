@@ -48,6 +48,10 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
     
     # If the second guess happens to be an exact root immediately
     if abs(f_x1) == 0.0 or abs(x1 - x0) < tol:
+        history.append({
+            "n": 1, "x_n": x1, "f(x_n)": f_x1, "error": 0.0,
+            "explanation": "Process completed: Initial guess is an exact root or within tolerance."
+        })
         return {
             "root": x1,
             "converged": True,
@@ -65,6 +69,10 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
         # STRESS TEST FINDING: Explicitly catch ZeroDivisionError
         denominator = current_f1 - current_f0
         if abs(denominator) == 0.0:
+            history.append({
+                "n": i, "x_n": current_x1, "f(x_n)": current_f1, "error": None,
+                "explanation": "Process stopped: Division by zero encountered. The secant line became horizontal."
+            })
             return {
                 "root": current_x1, # Return best guess so far
                 "converged": False,
@@ -79,6 +87,10 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
         try:
             f_next = func(x_next)
         except Exception as e:
+            history.append({
+                "n": i, "x_n": x_next, "f(x_n)": None, "error": None,
+                "explanation": f"Process stopped: Mathematical domain error encountered during evaluation: {str(e)}"
+            })
             return {
                 "root": x_next,
                 "converged": False,
@@ -98,6 +110,10 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
         # Check convergence criteria
         # We check both the step size and the function value being close to 0
         if error_val < tol or abs(f_next) == 0.0:
+            history.append({
+                "n": i, "x_n": x_next, "f(x_n)": f_next, "error": error_val,
+                "explanation": f"Process completed: Residual error is within tolerance ({tol}). Root found!"
+            })
             return {
                 "root": x_next,
                 "converged": True,
@@ -113,6 +129,10 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
         current_f1 = f_next
         
     # If loop finishes without returning, max_iter was reached
+    history.append({
+        "n": max_iter, "x_n": current_x1, "f(x_n)": current_f1, "error": abs(current_x1 - current_x0),
+        "explanation": f"Process stopped: Maximum iterations ({max_iter}) reached without meeting tolerance criteria."
+    })
     return {
         "root": current_x1,
         "converged": False,
