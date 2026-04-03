@@ -1,5 +1,7 @@
 import random
 
+from src.utils.parsing import parse_math_expr
+
 
 def _gen_polynomial() -> dict:
     """Generates a random polynomial equation (quadratic or cubic) with smart bounds."""
@@ -91,7 +93,38 @@ def _gen_mixed() -> dict:
     return {"func": func, "x0": str(x0), "x1": str(x1)}
 
 
-def get_random_test_case() -> dict:
+def _try_find_bracket(func_str: str, attempts: int = 30) -> tuple[float, float] | None:
+    """Attempts to find an interval [a, b] such that f(a) and f(b) have opposite signs."""
+    try:
+        func = parse_math_expr(func_str)
+    except Exception:
+        return None
+
+    for _ in range(attempts):
+        center = random.uniform(-3.0, 3.0)
+        span = random.uniform(0.5, 4.0)
+        a = round(center - span, 2)
+        b = round(center + span, 2)
+        if a == b:
+            continue
+        if a > b:
+            a, b = b, a
+        try:
+            f_a = func(a)
+            f_b = func(b)
+        except Exception:
+            continue
+        if f_a == 0.0:
+            return a, a
+        if f_b == 0.0:
+            return b, b
+        if f_a * f_b < 0.0:
+            return a, b
+
+    return None
+
+
+def get_random_test_case(method: str = "Secant") -> dict:
     """
     Dynamically generates a random, mathematically valid test case
     for the Secant Method with varied equation types and smart bounds.
@@ -99,6 +132,13 @@ def get_random_test_case() -> dict:
     """
     generator = random.choice([_gen_polynomial, _gen_trigonometric, _gen_exponential, _gen_mixed])
     case = generator()
+
+    if method.strip().lower() == "bisection":
+        bracket = _try_find_bracket(case["func"])
+        if bracket is not None:
+            a, b = bracket
+            case["x0"] = str(a)
+            case["x1"] = str(b)
     
     # Smart tolerance and iteration limits
     case["tol"] = random.choice(["1e-4", "1e-5", "1e-6", "1e-8"])

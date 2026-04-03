@@ -20,6 +20,7 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
             - "iterations": int, Number of steps taken
             - "history": List[dict], Iteration history for the UI log (includes an 'explanation' string)
             - "error_msg": str | None, Error message if failed
+            - "method": str, Method label for UI rendering
     """
     
     history: List[Dict[str, Any]] = []
@@ -33,7 +34,9 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
             "converged": False,
             "iterations": 0,
             "history": history,
-            "error_msg": f"Error evaluating function at initial guesses: {str(e)}"
+            "error_msg": f"Error evaluating function at initial guesses: {str(e)}",
+            "method": "Secant",
+            "message_level": "warning",
         }
 
     # Log initial guesses
@@ -57,7 +60,9 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
             "converged": True,
             "iterations": 1,
             "history": history,
-            "error_msg": None
+            "error_msg": None,
+            "method": "Secant",
+            "message_level": "success",
         }
 
     current_x0 = x0
@@ -78,7 +83,9 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
                 "converged": False,
                 "iterations": i - 1,
                 "history": history,
-                "error_msg": "Division by zero (secant line is horizontal)."
+                "error_msg": "Division by zero (secant line is horizontal).",
+                "method": "Secant",
+                "message_level": "warning",
             }
             
         # Secant method formula
@@ -96,7 +103,9 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
                 "converged": False,
                 "iterations": i,
                 "history": history,
-                "error_msg": f"Calculation error at x={x_next}: {str(e)}"
+                "error_msg": f"Calculation error at x={x_next}: {str(e)}",
+                "method": "Secant",
+                "message_level": "warning",
             }
             
         error_val = abs(x_next - current_x1)
@@ -119,7 +128,9 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
                 "converged": True,
                 "iterations": i,
                 "history": history,
-                "error_msg": None
+                "error_msg": None,
+                "method": "Secant",
+                "message_level": "success",
             }
             
         # Update variables for next iteration
@@ -138,5 +149,7 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
         "converged": False,
         "iterations": max_iter,
         "history": history,
-        "error_msg": f"Failed to converge after {max_iter} iterations."
+        "error_msg": f"Failed to converge after {max_iter} iterations.",
+        "method": "Secant",
+        "message_level": "warning",
     }

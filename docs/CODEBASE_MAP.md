@@ -2,7 +2,7 @@
 
 ## Project Root
 - `GEMINI.md`: **The Law**. Primary context and rules.
-- `PRD.md`: Product Requirements Document.
+- `_bmad-output/planning-artifacts/prd.md`: Active Product Requirements Document for planning.
 - `README.md`: General overview.
 
 ## Documentation (`docs/`)

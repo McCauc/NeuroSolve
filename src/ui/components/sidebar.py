@@ -28,14 +28,25 @@ class SidebarFrame(ctk.CTkFrame):
         self.input_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.input_frame.pack(side="left", expand=True, fill="x", padx=10, pady=(5, 5), anchor="w")
 
+        self.method_var = tk.StringVar(value="Secant")
+        self.method_menu = self._create_option_group(
+            self.input_frame,
+            "METHOD",
+            "M",
+            ["Secant", "Bisection"],
+            self.method_var,
+            width=160
+        )
+        Tooltip(self.method_menu, "Choose the root-finding method to use")
+
         self.func_entry = self._create_input_group(self.input_frame, "INITIAL f(x)", "|→", "x**2 - 4", width=160)
         Tooltip(self.func_entry, "Enter the mathematical function using x as the variable\nExample: x**2 - 4, sin(x), exp(x) - 1")
         
-        self.x0_entry = self._create_input_group(self.input_frame, "INITIAL X0", "|→", "1.0", width=160)
-        Tooltip(self.x0_entry, "First initial guess for the secant method\nShould be close to where f(x) ≈ 0")
+        self.x0_entry = self._create_input_group(self.input_frame, "X0 / A", "|→", "1.0", width=160)
+        Tooltip(self.x0_entry, "Secant: first initial guess (x0)\nBisection: interval start (a)")
         
-        self.x1_entry = self._create_input_group(self.input_frame, "INITIAL X1", "→", "2.0", width=160)
-        Tooltip(self.x1_entry, "Second initial guess for the secant method\nShould be different from X0")
+        self.x1_entry = self._create_input_group(self.input_frame, "X1 / B", "→", "2.0", width=160)
+        Tooltip(self.x1_entry, "Secant: second initial guess (x1)\nBisection: interval end (b)")
         
         self.tol_entry = self._create_input_group(self.input_frame, "TOLERANCE", "×", "1e-6", width=160)
         Tooltip(self.tol_entry, "Convergence tolerance (epsilon)\nSmaller values = more accurate but slower")
@@ -113,7 +124,7 @@ class SidebarFrame(ctk.CTkFrame):
         )
         # Pad by 3px symmetrically so the black border shows through under the button
         self.solve_button.pack(expand=True, fill="both", padx=3, pady=3)
-        Tooltip(self.solve_button, "Execute the secant method solver\nwith the configured parameters")
+        Tooltip(self.solve_button, "Execute the selected root-finding method\nwith the configured parameters")
 
     def _create_input_group(self, parent, top_label_text, inner_icon_text, placeholder, width=160):
         """
@@ -121,7 +132,7 @@ class SidebarFrame(ctk.CTkFrame):
 
         Args:
             parent: The CTkFrame to attach this widget to.
-            top_label_text (str): The label displayed above the input (e.g., "INITIAL X0").
+            top_label_text (str): The label displayed above the input (e.g., "X0 / A").
             inner_icon_text (str): The mathematical symbol shown inside the left of the box.
             placeholder (str): The ghost text shown when the input is empty.
             width (int): The absolute pixel width of the input field.
@@ -191,12 +202,73 @@ class SidebarFrame(ctk.CTkFrame):
 
         return entry
 
+    def _create_option_group(self, parent, top_label_text, inner_icon_text, options, variable, width=140):
+        """Creates a labeled dropdown selector styled like the input groups."""
+        group = ctk.CTkFrame(parent, fg_color="transparent")
+        group.pack(side="left", padx=(0, 15), anchor="s")
+
+        label = ctk.CTkLabel(
+            group,
+            text=top_label_text,
+            font=ctk.CTkFont(family="Space Grotesk", size=11, weight="bold"),
+            text_color="#000000"
+        )
+        label.pack(anchor="w", pady=(0, 2))
+
+        shadow_container = ctk.CTkFrame(group, fg_color="transparent", width=width+4, height=44)
+        shadow_container.pack(anchor="w")
+        shadow_container.pack_propagate(False)
+
+        shadow = ctk.CTkFrame(shadow_container, fg_color="#000000", corner_radius=0, width=width, height=40)
+        shadow.place(x=4, y=4)
+
+        content_box = ctk.CTkFrame(
+            shadow_container,
+            fg_color="#FFFFFF",
+            corner_radius=0,
+            border_width=3,
+            border_color="#000000",
+            width=width,
+            height=40
+        )
+        content_box.place(x=0, y=0)
+        content_box.pack_propagate(False)
+
+        inner_icon_label = ctk.CTkLabel(
+            content_box,
+            text=inner_icon_text,
+            font=ctk.CTkFont(family="Space Mono", size=16, weight="bold"),
+            text_color="#000000",
+            height=34
+        )
+        inner_icon_label.pack(side="left", padx=(7, 2), pady=3)
+
+        option_menu = ctk.CTkOptionMenu(
+            content_box,
+            values=options,
+            variable=variable,
+            corner_radius=0,
+            fg_color="#FFFFFF",
+            button_color="#FFFFFF",
+            button_hover_color="#E2E8F0",
+            dropdown_fg_color="#FFFFFF",
+            dropdown_text_color="#000000",
+            dropdown_hover_color="#E2E8F0",
+            text_color="#000000",
+            width=50,
+            height=34
+        )
+        option_menu.pack(side="left", fill="both", expand=True, padx=(0, 8), pady=3)
+
+        return option_menu
+
     def _dev_fill_random_inputs(self, event=None):
         """DEV ONLY: Fills fields with curated valid random test cases."""
         if not IS_DEV_MODE:
             return
             
-        test_case = get_random_test_case()
+        method_name = self.method_var.get()
+        test_case = get_random_test_case(method_name)
         
         self.clear_inputs()
         
@@ -224,6 +296,7 @@ class SidebarFrame(ctk.CTkFrame):
     def get_inputs(self) -> dict:
         """Returns the raw string inputs currently in the sidebar."""
         return {
+            "method": self.method_var.get(),
             "func": self.func_entry.get().strip(),
             "x0": self.x0_entry.get(),
             "x1": self.x1_entry.get(),

@@ -72,19 +72,18 @@ class HeaderFrame(ctk.CTkFrame):
         )
         self.title_sub.pack(side="left")
 
-        # Row 2: Bottom Protocol Badge with shadow
-        # Width precisely matched to 309px for 'NEUROSOLVE.NEO' Space Grotesk size 28 text
-        self.badge_container = ctk.CTkFrame(self.title_container, fg_color="transparent", width=310, height=30)
+        # Row 2: Method Sticker Badge with hard shadow
+        self.badge_container = ctk.CTkFrame(self.title_container, fg_color="transparent", width=320, height=34)
         self.badge_container.pack(side="top", anchor="w")
         self.badge_container.pack_propagate(False)
 
         # Hard shadow using raw tk.Frame to prevent bleed
         self.badge_shadow = tk.Frame(self.badge_container, bg="#000000")
-        self.badge_shadow.place(x=4, y=4, width=237, height=26)
+        self.badge_shadow.place(x=4, y=4, width=278, height=30)
 
         # Solid black border using raw tk.Frame to prevent bleed
         self.badge_border = tk.Frame(self.badge_container, bg="#000000")
-        self.badge_border.place(x=0, y=0, width=235, height=26)
+        self.badge_border.place(x=0, y=0, width=276, height=30)
         self.badge_border.pack_propagate(False)
 
         self.badge = ctk.CTkFrame(
@@ -98,11 +97,13 @@ class HeaderFrame(ctk.CTkFrame):
         
         self.badge_label = ctk.CTkLabel(
             self.badge,
-            text="SECANT METHOD ROOT FINDER",
-            font=ctk.CTkFont(family="Space Grotesk", size=11, weight="bold"), # Updated to Space Grotesk
-            text_color="#000000"
+            text="SECANT METHOD",
+            font=ctk.CTkFont(family="Space Grotesk", size=15, weight="bold"),
+            text_color="#000000",
+            justify="center",
+            wraplength=252,
         )
-        self.badge_label.pack(expand=True, fill="both", padx=3, pady=3)
+        self.badge_label.pack(expand=True, fill="both", padx=6, pady=4)
 
         # -------------------
         # 3. ACTIONS (RIGHT)
@@ -184,3 +185,39 @@ class HeaderFrame(ctk.CTkFrame):
         # Sub Badge -> Invalid Inputs
         self.badge_label.bind("<Button-1>", invalid_filler_callback)
         self.badge_label.configure(cursor="hand2")
+
+    def set_help_callback(self, callback) -> None:
+        """Assigns the About/Help action for the header help button."""
+        self.help_btn.configure(command=callback)
+
+    def set_method_badge(self, method_name: str) -> None:
+        """Updates the header badge to reflect the currently selected method."""
+        normalized = (method_name or "").strip().lower()
+        if "secant" in normalized:
+            sticker_color = "#00FFFF"
+            label = "SECANT METHOD"
+        elif "bisection" in normalized:
+            sticker_color = "#FFFF00"
+            label = "BISECTION METHOD"
+        elif normalized:
+            sticker_color = "#FFFFFF"
+            label = method_name.strip().upper()
+        else:
+            sticker_color = "#00FFFF"
+            label = "SECANT METHOD"
+
+        self.badge.configure(fg_color=sticker_color)
+        if len(label) <= 18:
+            font_size = 15
+            display = label
+        elif len(label) <= 24:
+            font_size = 13
+            display = label
+        else:
+            font_size = 12
+            display = f"{label[:21]}..."
+
+        self.badge_label.configure(
+            text=display,
+            font=ctk.CTkFont(family="Space Grotesk", size=font_size, weight="bold"),
+        )
