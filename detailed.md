@@ -297,17 +297,12 @@ pytest tests/ --cov=src          # Generate coverage report
 
 ### Installation Steps
 
-**1. Create Virtual Environment:**
+**1. Install Dependencies:**
 ```bash
-python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # macOS/Linux
+py -3 -m pip install -r requirements.txt
 ```
 
-**2. Install Dependencies:**
-```bash
-pip install -r requirements.txt
-```
+You can also skip this step and launch `run.bat`, which installs the requirements automatically before starting the app.
 
 **Dependencies Summary:**
 | Package | Version | Purpose |
@@ -561,7 +556,7 @@ Students can learn:
 
 ### Configuration Files
 - **requirements.txt**: Exact versions of all Python dependencies
-- **run.bat**: Windows batch script that activates venv and runs app
+- **run.bat**: Windows batch script that runs the app with the installed Python runtime
 - **detailed.md**: This comprehensive documentation file
 
 ### Source Files

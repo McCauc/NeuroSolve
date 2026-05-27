@@ -57,3 +57,15 @@ def test_secant_exception_handling():
     
     assert result["converged"] is False
     assert "Error evaluating function" in result["error_msg"]
+
+
+def test_secant_failure_contract_keys():
+    """Failure paths should preserve the shared solver contract used by the UI."""
+    result = solve_secant_method(lambda _: 5.0, x0=1.0, x1=2.0)
+
+    assert result["converged"] is False
+    assert result["method"] == "Secant"
+    assert {"root", "converged", "iterations", "history", "error_msg", "method", "message_level"} <= set(result.keys())
+    assert result["message_level"] == "warning"
+    assert len(result["history"]) >= 2
+    assert {"n", "x_n", "f(x_n)", "error", "explanation"} <= set(result["history"][-1].keys())

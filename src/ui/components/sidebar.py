@@ -1,6 +1,9 @@
 import customtkinter as ctk
 import tkinter as tk
 import os
+from dataclasses import dataclass
+
+from src.utils.numeric_validation import NumericFieldKind, is_numeric_text_valid
 from src.utils.tooltip import Tooltip
 
 # Set to "1" locally to enable dev fillers, disable for production.
@@ -8,6 +11,22 @@ IS_DEV_MODE = os.environ.get("NEUROSOLVE_DEV", "0") == "1"
 
 if IS_DEV_MODE:
     from src.utils.dev_tools import get_random_test_case, get_invalid_test_case
+
+
+_FIELD_BORDER_COLOR = "#000000"
+_FIELD_BORDER_INVALID_COLOR = "#FF0000"
+_FIELD_BACKGROUND_COLOR = "#FFFFFF"
+_FIELD_BACKGROUND_INVALID_COLOR = "#FFF0F0"
+
+
+@dataclass
+class _NumericFieldState:
+    kind: NumericFieldKind
+    label: str
+    content_box: ctk.CTkFrame
+    entry: ctk.CTkEntry
+    invalid: bool = False
+
 
 class SidebarFrame(ctk.CTkFrame):
     def __init__(self, master, calculate_callback, clear_callback, **kwargs):
@@ -17,6 +36,8 @@ class SidebarFrame(ctk.CTkFrame):
         
         self.calculate_callback = calculate_callback
         self.clear_callback = clear_callback
+        self._numeric_validation_suspended = False
+        self._numeric_fields: dict[str, _NumericFieldState] = {}
         
         # We will use pack for a horizontal layout
         
@@ -28,19 +49,54 @@ class SidebarFrame(ctk.CTkFrame):
         self.input_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.input_frame.pack(side="left", expand=True, fill="x", padx=10, pady=(5, 5), anchor="w")
 
+        self.method_var = tk.StringVar(value="Secant")
+        self.method_menu = self._create_option_group(
+            self.input_frame,
+            "METHOD",
+            "M",
+            ["Secant", "Bisection"],
+            self.method_var,
+            width=160
+        )
+        Tooltip(self.method_menu, "Choose the root-finding method to use")
+
         self.func_entry = self._create_input_group(self.input_frame, "INITIAL f(x)", "|→", "x**2 - 4", width=160)
         Tooltip(self.func_entry, "Enter the mathematical function using x as the variable\nExample: x**2 - 4, sin(x), exp(x) - 1")
         
-        self.x0_entry = self._create_input_group(self.input_frame, "INITIAL X0", "|→", "1.0", width=160)
-        Tooltip(self.x0_entry, "First initial guess for the secant method\nShould be close to where f(x) ≈ 0")
+        self.x0_entry = self._create_input_group(
+            self.input_frame,
+            "X0 / A",
+            "|→",
+            "1.0",
+            width=160,
+            field_key="x0",
+            field_kind="float",
+        )
+        Tooltip(self.x0_entry, "Secant: first initial guess (x0)\nBisection: interval start (a)")
         
-        self.x1_entry = self._create_input_group(self.input_frame, "INITIAL X1", "→", "2.0", width=160)
-        Tooltip(self.x1_entry, "Second initial guess for the secant method\nShould be different from X0")
+        self.x1_entry = self._create_input_group(
+            self.input_frame,
+            "X1 / B",
+            "→",
+            "2.0",
+            width=160,
+            field_key="x1",
+            field_kind="float",
+        )
+        Tooltip(self.x1_entry, "Secant: second initial guess (x1)\nBisection: interval end (b)")
         
         self.tol_entry = self._create_input_group(self.input_frame, "TOLERANCE", "×", "1e-6", width=160)
         Tooltip(self.tol_entry, "Convergence tolerance (epsilon)\nSmaller values = more accurate but slower")
         
-        self.iter_entry = self._create_input_group(self.input_frame, "MAX ITER.", "↻", "100", width=160)
+        self.iter_entry = self._create_input_group(
+            self.input_frame,
+            "MAX ITER.",
+            "↻",
+            "100",
+            width=160,
+            field_key="max_iter",
+            field_kind="int",
+        )
         Tooltip(self.iter_entry, "Maximum number of iterations\nPrevents infinite loops if no solution exists")
 
         # Action Buttons (Rightmost)
@@ -113,15 +169,24 @@ class SidebarFrame(ctk.CTkFrame):
         )
         # Pad by 3px symmetrically so the black border shows through under the button
         self.solve_button.pack(expand=True, fill="both", padx=3, pady=3)
-        Tooltip(self.solve_button, "Execute the secant method solver\nwith the configured parameters")
+        Tooltip(self.solve_button, "Execute the selected root-finding method\nwith the configured parameters")
 
-    def _create_input_group(self, parent, top_label_text, inner_icon_text, placeholder, width=160):
+    def _create_input_group(
+        self,
+        parent,
+        top_label_text,
+        inner_icon_text,
+        placeholder,
+        width=160,
+        field_key: str | None = None,
+        field_kind: NumericFieldKind | None = None,
+    ):
         """
         Creates a standardized Neo-Brutalist input field with a drop shadow.
 
         Args:
             parent: The CTkFrame to attach this widget to.
-            top_label_text (str): The label displayed above the input (e.g., "INITIAL X0").
+            top_label_text (str): The label displayed above the input (e.g., "X0 / A").
             inner_icon_text (str): The mathematical symbol shown inside the left of the box.
             placeholder (str): The ghost text shown when the input is empty.
             width (int): The absolute pixel width of the input field.
@@ -189,14 +254,152 @@ class SidebarFrame(ctk.CTkFrame):
         # Add a tiny bit of right padding so text doesn't hit the right border
         entry.pack(side="left", fill="both", expand=True, padx=(0, 8), pady=3)
 
+        if field_key and field_kind:
+            self._attach_numeric_field(field_key, top_label_text, field_kind, content_box, entry)
+
         return entry
+
+    def _attach_numeric_field(
+        self,
+        field_key: str,
+        label_text: str,
+        field_kind: NumericFieldKind,
+        content_box: ctk.CTkFrame,
+        entry: ctk.CTkEntry,
+    ) -> None:
+        state = _NumericFieldState(
+            kind=field_kind,
+            label=label_text,
+            content_box=content_box,
+            entry=entry,
+        )
+        self._numeric_fields[field_key] = state
+
+        validate_callback = self.register(
+            lambda proposed_text, key=field_key: self._validate_numeric_edit(key, proposed_text)
+        )
+        entry.configure(validate="key", validatecommand=(validate_callback, "%P"))
+        entry.bind("<FocusOut>", lambda _event, key=field_key: self._validate_numeric_field_final(key))
+        self._set_numeric_field_style(field_key, invalid=False)
+
+    def _set_numeric_field_style(self, field_key: str, *, invalid: bool) -> None:
+        state = self._numeric_fields[field_key]
+        state.invalid = invalid
+        state.content_box.configure(
+            border_color=_FIELD_BORDER_INVALID_COLOR if invalid else _FIELD_BORDER_COLOR,
+            fg_color=_FIELD_BACKGROUND_INVALID_COLOR if invalid else _FIELD_BACKGROUND_COLOR,
+        )
+
+    def _validate_numeric_edit(self, field_key: str, proposed_text: str) -> bool:
+        if self._numeric_validation_suspended:
+            return True
+
+        state = self._numeric_fields[field_key]
+        if is_numeric_text_valid(proposed_text, state.kind, final=False):
+            if is_numeric_text_valid(proposed_text, state.kind, final=True):
+                self._set_numeric_field_style(field_key, invalid=False)
+            elif state.invalid:
+                self._set_numeric_field_style(field_key, invalid=True)
+            else:
+                self._set_numeric_field_style(field_key, invalid=False)
+            return True
+
+        self._set_numeric_field_style(field_key, invalid=True)
+        return False
+
+    def _validate_numeric_field_final(self, field_key: str) -> bool:
+        if self._numeric_validation_suspended:
+            return True
+
+        state = self._numeric_fields[field_key]
+        current_text = state.entry.get()
+        if is_numeric_text_valid(current_text, state.kind, final=True):
+            self._set_numeric_field_style(field_key, invalid=False)
+            return True
+
+        self._set_numeric_field_style(field_key, invalid=True)
+        return False
+
+    def _numeric_field_error_message(self, field_key: str) -> str:
+        state = self._numeric_fields[field_key]
+        if state.kind == "float":
+            return f"{state.label} must be a valid decimal number."
+        return f"{state.label} must be a whole number."
+
+    def validate_numeric_inputs(self) -> tuple[bool, list[str]]:
+        errors = []
+        for field_key in ("x0", "x1", "max_iter"):
+            if not self._validate_numeric_field_final(field_key):
+                errors.append(self._numeric_field_error_message(field_key))
+        return not errors, errors
+
+    def _create_option_group(self, parent, top_label_text, inner_icon_text, options, variable, width=140):
+        """Creates a labeled dropdown selector styled like the input groups."""
+        group = ctk.CTkFrame(parent, fg_color="transparent")
+        group.pack(side="left", padx=(0, 15), anchor="s")
+
+        label = ctk.CTkLabel(
+            group,
+            text=top_label_text,
+            font=ctk.CTkFont(family="Space Grotesk", size=11, weight="bold"),
+            text_color="#000000"
+        )
+        label.pack(anchor="w", pady=(0, 2))
+
+        shadow_container = ctk.CTkFrame(group, fg_color="transparent", width=width+4, height=44)
+        shadow_container.pack(anchor="w")
+        shadow_container.pack_propagate(False)
+
+        shadow = ctk.CTkFrame(shadow_container, fg_color="#000000", corner_radius=0, width=width, height=40)
+        shadow.place(x=4, y=4)
+
+        content_box = ctk.CTkFrame(
+            shadow_container,
+            fg_color="#FFFFFF",
+            corner_radius=0,
+            border_width=3,
+            border_color="#000000",
+            width=width,
+            height=40
+        )
+        content_box.place(x=0, y=0)
+        content_box.pack_propagate(False)
+
+        inner_icon_label = ctk.CTkLabel(
+            content_box,
+            text=inner_icon_text,
+            font=ctk.CTkFont(family="Space Mono", size=16, weight="bold"),
+            text_color="#000000",
+            height=34
+        )
+        inner_icon_label.pack(side="left", padx=(7, 2), pady=3)
+
+        option_menu = ctk.CTkOptionMenu(
+            content_box,
+            values=options,
+            variable=variable,
+            corner_radius=0,
+            fg_color="#FFFFFF",
+            button_color="#FFFFFF",
+            button_hover_color="#E2E8F0",
+            dropdown_fg_color="#FFFFFF",
+            dropdown_text_color="#000000",
+            dropdown_hover_color="#E2E8F0",
+            text_color="#000000",
+            width=50,
+            height=34
+        )
+        option_menu.pack(side="left", fill="both", expand=True, padx=(0, 8), pady=3)
+
+        return option_menu
 
     def _dev_fill_random_inputs(self, event=None):
         """DEV ONLY: Fills fields with curated valid random test cases."""
         if not IS_DEV_MODE:
             return
             
-        test_case = get_random_test_case()
+        method_name = self.method_var.get()
+        test_case = get_random_test_case(method_name)
         
         self.clear_inputs()
         
@@ -224,6 +427,7 @@ class SidebarFrame(ctk.CTkFrame):
     def get_inputs(self) -> dict:
         """Returns the raw string inputs currently in the sidebar."""
         return {
+            "method": self.method_var.get(),
             "func": self.func_entry.get().strip(),
             "x0": self.x0_entry.get(),
             "x1": self.x1_entry.get(),
@@ -233,8 +437,13 @@ class SidebarFrame(ctk.CTkFrame):
 
     def clear_inputs(self):
         """Clears the sidebar input fields."""
+        self._numeric_validation_suspended = True
         self.func_entry.delete(0, 'end')
         self.x0_entry.delete(0, 'end')
         self.x1_entry.delete(0, 'end')
         self.tol_entry.delete(0, 'end')
         self.iter_entry.delete(0, 'end')
+        self._numeric_validation_suspended = False
+
+        for field_key in self._numeric_fields:
+            self._set_numeric_field_style(field_key, invalid=False)

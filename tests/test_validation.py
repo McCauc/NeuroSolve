@@ -28,3 +28,9 @@ class TestInputValidation:
         with pytest.raises(ValueError) as exc:
             parse_math_expr(invalid_expr)
         assert "Invalid mathematical expression" in str(exc.value)
+
+    def test_empty_expression_rejected(self):
+        """Edge case: empty expressions should fail parsing with a clear error."""
+        with pytest.raises(ValueError) as exc:
+            parse_math_expr("")
+        assert "Invalid characters detected" in str(exc.value)

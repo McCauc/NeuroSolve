@@ -1,4 +1,65 @@
-from typing import Callable, Dict, Any, List
+from typing import Any, Callable, Dict, List, Optional
+
+from src.utils.verification import build_verification_payload
+
+
+def _no_estimate_verification(reason: str) -> Dict[str, Any]:
+    return build_verification_payload(
+        status="warning",
+        summary=f"No trustworthy estimate exists for this run. {reason}",
+        checks=[
+            {
+                "label": "Estimate Available",
+                "value": False,
+                "detail": "Residual-based verification could not run because the solver did not produce a trustworthy estimate.",
+            }
+        ],
+        can_export=True,
+    )
+
+
+def _secant_verification_payload(
+    status: str,
+    summary: str,
+    residual: Optional[float],
+    step_size: Optional[float],
+    trustworthy_estimate: bool = True,
+) -> Dict[str, Any]:
+    checks = [
+        {
+            "label": "Estimate Available",
+            "value": trustworthy_estimate,
+            "detail": (
+                "A numeric estimate is available for back-checking."
+                if trustworthy_estimate
+                else "The available value should be treated as provisional; strict residual validation is unavailable."
+            ),
+        },
+        {
+            "label": "Residual |f(x*)|",
+            "value": residual,
+            "detail": (
+                "Absolute function value at the reported estimate."
+                if residual is not None
+                else "Residual check unavailable for this outcome."
+            ),
+        },
+        {
+            "label": "Step Size |Δx|",
+            "value": step_size,
+            "detail": (
+                "Absolute change between consecutive secant estimates."
+                if step_size is not None
+                else "Step-size evidence unavailable for this outcome."
+            ),
+        },
+    ]
+    return build_verification_payload(
+        status=status,
+        summary=summary,
+        checks=checks,
+        can_export=True,
+    )
 
 def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, tol: float = 1e-6, max_iter: int = 100) -> Dict[str, Any]:
     """
@@ -20,6 +81,7 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
             - "iterations": int, Number of steps taken
             - "history": List[dict], Iteration history for the UI log (includes an 'explanation' string)
             - "error_msg": str | None, Error message if failed
+            - "method": str, Method label for UI rendering
     """
     
     history: List[Dict[str, Any]] = []
@@ -33,7 +95,12 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
             "converged": False,
             "iterations": 0,
             "history": history,
-            "error_msg": f"Error evaluating function at initial guesses: {str(e)}"
+            "error_msg": f"Error evaluating function at initial guesses: {str(e)}",
+            "method": "Secant",
+            "message_level": "warning",
+            "verification": _no_estimate_verification(
+                "Initial guesses could not be evaluated, so no residual back-check could be completed."
+            ),
         }
 
     # Log initial guesses
@@ -57,7 +124,15 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
             "converged": True,
             "iterations": 1,
             "history": history,
-            "error_msg": None
+            "error_msg": None,
+            "method": "Secant",
+            "message_level": "success",
+            "verification": _secant_verification_payload(
+                status="success",
+                summary="Initial secant estimate satisfies the convergence check.",
+                residual=abs(float(f_x1)),
+                step_size=abs(float(x1 - x0)),
+            ),
         }
 
     current_x0 = x0
@@ -78,7 +153,15 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
                 "converged": False,
                 "iterations": i - 1,
                 "history": history,
-                "error_msg": "Division by zero (secant line is horizontal)."
+                "error_msg": "Division by zero (secant line is horizontal).",
+                "method": "Secant",
+                "message_level": "warning",
+                "verification": _secant_verification_payload(
+                    status="warning",
+                    summary="Secant iteration stopped because the denominator collapsed to zero. Reported estimate is best-effort only.",
+                    residual=abs(float(current_f1)),
+                    step_size=None,
+                ),
             }
             
         # Secant method formula
@@ -96,7 +179,16 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
                 "converged": False,
                 "iterations": i,
                 "history": history,
-                "error_msg": f"Calculation error at x={x_next}: {str(e)}"
+                "error_msg": f"Calculation error at x={x_next}: {str(e)}",
+                "method": "Secant",
+                "message_level": "warning",
+                "verification": _secant_verification_payload(
+                    status="warning",
+                    summary="No trustworthy estimate exists for this run because function evaluation failed at the latest secant update.",
+                    residual=None,
+                    step_size=None,
+                    trustworthy_estimate=False,
+                ),
             }
             
         error_val = abs(x_next - current_x1)
@@ -119,7 +211,15 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
                 "converged": True,
                 "iterations": i,
                 "history": history,
-                "error_msg": None
+                "error_msg": None,
+                "method": "Secant",
+                "message_level": "success",
+                "verification": _secant_verification_payload(
+                    status="success",
+                    summary="Secant method converged with both a small step and a near-zero residual.",
+                    residual=abs(float(f_next)),
+                    step_size=abs(float(error_val)),
+                ),
             }
             
         # Update variables for next iteration
@@ -138,5 +238,13 @@ def solve_secant_method(func: Callable[[float], float], x0: float, x1: float, to
         "converged": False,
         "iterations": max_iter,
         "history": history,
-        "error_msg": f"Failed to converge after {max_iter} iterations."
+        "error_msg": f"Failed to converge after {max_iter} iterations.",
+        "method": "Secant",
+        "message_level": "warning",
+        "verification": _secant_verification_payload(
+            status="warning",
+            summary="Maximum iterations were reached before convergence. Reported estimate is best-known and should be reviewed cautiously.",
+            residual=abs(float(current_f1)),
+            step_size=abs(float(current_x1 - current_x0)),
+        ),
     }
