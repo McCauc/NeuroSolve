@@ -112,42 +112,13 @@ class HeaderFrame(ctk.CTkFrame):
         # Anchor east (right side) and rely 0.5 (vertically centered)
         self.actions_container.place(relx=1.0, x=-20, rely=0.5, anchor="e")
 
-        # Settings Container
-        self.settings_container = ctk.CTkFrame(self.actions_container, fg_color="transparent", width=44, height=44)
-        self.settings_container.pack(side="left", padx=(0, 10))
-        self.settings_container.pack_propagate(False)
-
-        # Shadow
-        self.settings_shadow = ctk.CTkFrame(self.settings_container, fg_color="#000000", corner_radius=0, width=40, height=40)
-        self.settings_shadow.place(x=4, y=4)
-
         # Load action icons
         try:
             from PIL import Image
-            settings_image = Image.open("assets/setting_icon_black.png")
-            settings_icon = ctk.CTkImage(light_image=settings_image, size=(20, 20))
-            
             help_image = Image.open("assets/question_icon_black.png")
             help_icon = ctk.CTkImage(light_image=help_image, size=(20, 20))
         except FileNotFoundError:
-            settings_icon = None
             help_icon = None
-
-        # Settings Button
-        self.settings_btn = ctk.CTkButton(
-            self.settings_container,
-            text="", # Clean empty text, use icon
-            image=settings_icon,
-            width=40,
-            height=40,
-            corner_radius=0,
-            fg_color="#FFFFFF",
-            hover_color="#E2E8F0",
-            text_color="#000000",
-            border_width=3,
-            border_color="#000000"
-        )
-        self.settings_btn.place(x=0, y=0)
 
         # Help Container
         self.help_container = ctk.CTkFrame(self.actions_container, fg_color="transparent", width=44, height=44)

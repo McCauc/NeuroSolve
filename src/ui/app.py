@@ -49,7 +49,7 @@ class NeuroSolveApp(ctk.CTk):
         self.configure(fg_color="#F8F5F8") # Off-white brutalist background from HTML reference
         
         # Main Grid Layout: Top-Down Split
-        # Row 0: Header (White, Logo, Settings)
+        # Row 0: Header (White, Logo)
         # Row 1: Header Border (Black)
         # Row 2: Command Strip (Mint Green, Inputs)
         # Row 3: Command Strip Border (Black)
