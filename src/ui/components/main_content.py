@@ -136,7 +136,7 @@ class MainContentFrame(ctk.CTkFrame):
 
         self.log_header_lbl = ctk.CTkLabel(
             self.log_title_frame, 
-            text="ALGORITHMIC LOG",
+            text="SOLUTION TRAIL",
             image=term_icon,
             compound="left",
             padx=5,
