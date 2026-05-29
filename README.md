@@ -74,7 +74,6 @@ pytest tests
 ## Week 7 Documentation Package
 
 - Test Plan v1: [`docs/test-plan-v1.md`](docs/test-plan-v1.md)
-- Week 7 screenshots: `docs/screenshots/week7/`
 
 ## Notes for Reviewers
 
