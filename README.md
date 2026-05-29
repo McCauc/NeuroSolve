@@ -71,7 +71,7 @@ pytest tests
 - `tests/` - automated tests
 - `docs/` - supporting documentation and Week 7 artifacts
 
-## Week 7 Documentation Package
+## Test Plan
 
 - Test Plan v1: [`docs/test-plan-v1.md`](docs/test-plan-v1.md)
 
